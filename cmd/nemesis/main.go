@@ -1,4 +1,4 @@
-package users
+package nemesis
 
 import "github.com/medium-tutorials/bad-inc/pkgs/server"
 

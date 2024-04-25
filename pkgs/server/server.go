@@ -9,9 +9,13 @@ type HTTPServerOptions struct {
 	Port string
 }
 
-type GrpcServerOptions struct{}
+type GrpcServerOptions struct {
+	Addr string
+}
 
-type MQOptions struct{}
+type MQOptions struct {
+	Connection string
+}
 
 func DefaultHTTPServerOptions() *HTTPServerOptions {
 	return &HTTPServerOptions{
@@ -33,7 +37,7 @@ func WithHTTPServerPort(port string) *HTTPServerOptions {
 	}
 }
 
-func NewHTTPServer() *echo.Echo {
+func NewHTTPServer(opts *HTTPServerOptions) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
