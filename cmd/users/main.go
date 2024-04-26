@@ -3,12 +3,13 @@ package users
 import "github.com/medium-tutorials/bad-inc/pkgs/server"
 
 func main() {
-	options := server.DefaultHTTPServerOptions()
-	server := server.NewHTTPServer(options)
+	server := server.NewServer(
+		server.WithPort(8000),
+	)
 
-	if err := server.Start(":" + options.Port); err != nil {
-		server.Logger.Panic(err)
-	}
+	go func() {
+		server.Logger.Fatal(server.Start(""))
+	}()
 
-	server.Logger.Info("server started on http://localhost:" + options.Port)
+	server.Logger.Info("server started on http://" + server.Server.Addr)
 }
