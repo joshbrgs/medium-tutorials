@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net"
 	"strconv"
 	"time"
 
@@ -13,13 +14,12 @@ type ServerOptions func(*echo.Echo)
 
 func WithPort(port int) ServerOptions {
 	return func(e *echo.Echo) {
-		e.Server.Addr = ":" + strconv.Itoa(port)
-	}
-}
+		l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+		if err != nil {
+			e.Logger.Fatal(err)
+		}
 
-func WithHost(host string) ServerOptions {
-	return func(e *echo.Echo) {
-		e.Server.Addr = host + ":" + e.Server.Addr
+		e.Listener = l
 	}
 }
 
@@ -38,7 +38,13 @@ func NewServer(opts ...ServerOptions) *echo.Echo {
 	e.Use(middleware.Recover())
 
 	// Default server options
-	e.Server.Addr = "localhost:8080"
+
+	l, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		e.Logger.Fatal(err)
+	}
+
+	e.Listener = l
 	e.Server.ReadTimeout = 30 * time.Second
 	e.Server.WriteTimeout = 30 * time.Second
 
