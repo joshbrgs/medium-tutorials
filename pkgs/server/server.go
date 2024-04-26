@@ -1,54 +1,50 @@
 package server
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-type HTTPServerOptions struct {
-	Port string
-}
+// New Echo Server with Options Pattern
+type ServerOptions func(*echo.Echo)
 
-type GrpcServerOptions struct {
-	Addr string
-}
-
-type MQOptions struct {
-	Connection string
-}
-
-func DefaultHTTPServerOptions() *HTTPServerOptions {
-	return &HTTPServerOptions{
-		Port: "8080",
+func WithPort(port int) ServerOptions {
+	return func(e *echo.Echo) {
+		e.Server.Addr = ":" + strconv.Itoa(port)
 	}
 }
 
-func DefaultGrpcServerOptions() *GrpcServerOptions {
-	return &GrpcServerOptions{}
-}
-
-func DefaultMQOptions() *MQOptions {
-	return &MQOptions{}
-}
-
-func WithHTTPServerPort(port string) *HTTPServerOptions {
-	return &HTTPServerOptions{
-		Port: port,
+func WithHost(host string) ServerOptions {
+	return func(e *echo.Echo) {
+		e.Server.Addr = host + ":" + e.Server.Addr
 	}
 }
 
-func NewHTTPServer(opts *HTTPServerOptions) *echo.Echo {
+func WithTimeout(timeout time.Duration) ServerOptions {
+	return func(e *echo.Echo) {
+		e.Server.ReadTimeout = timeout
+		e.Server.WriteTimeout = timeout
+	}
+}
+
+func NewServer(opts ...ServerOptions) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	// Default server options
+	e.Server.Addr = "localhost:8080"
+	e.Server.ReadTimeout = 30 * time.Second
+	e.Server.WriteTimeout = 30 * time.Second
+
+	for _, opt := range opts {
+		opt(e)
+	}
+
 	return e
-}
-
-func NewGrpcServer() {
-}
-
-func NewMQConnection() {
 }
