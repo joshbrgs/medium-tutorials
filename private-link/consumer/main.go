@@ -167,16 +167,14 @@ func main() {
 		if err != nil {
 			return err
 		}
-
-		// Create Endpoint for Session Manager
-		_, err = ec2.NewVpcEndpoint(ctx, "com.amazonaws.us-east-1.s3", &ec2.VpcEndpointArgs{
-			VpcId:         vpc.ID(),
-			ServiceName:   pulumi.String("com.amazonaws.us-east-1.s3"),
-			RouteTableIds: pulumi.StringArray{privateRouteTable.ID()},
-			// SecurityGroupIds: insert your security group IDs here if needed.
-			Tags: pulumi.StringMap{
-				"Name": pulumi.String("com.amazonaws.us-east-1.s3"),
-			},
+		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupNatEgress", &ec2.SecurityGroupRuleArgs{
+			Type:            pulumi.String("egress"),
+			FromPort:        pulumi.Int(443),
+			ToPort:          pulumi.Int(443),
+			Protocol:        pulumi.String("tcp"),
+			SecurityGroupId: gluesg.ID(),
+			CidrBlocks:      pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+			Description:     pulumi.String("Allow ec2 instance traffic to ssm"),
 		})
 		if err != nil {
 			return err
