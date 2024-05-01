@@ -90,7 +90,7 @@ func main() {
 			return err
 		}
 
-		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupIngress", &ec2.SecurityGroupRuleArgs{
+		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupEgress", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("egress"),
 			FromPort:              pulumi.Int(0),
 			ToPort:                pulumi.Int(65535),
