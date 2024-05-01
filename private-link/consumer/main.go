@@ -20,14 +20,66 @@ func main() {
 		}
 
 		// Create private subnet
-		_, err = ec2.NewSubnet(ctx, "consumer-private-subnet", &ec2.SubnetArgs{
+		subnet, err := ec2.NewSubnet(ctx, "consumer-private-subnet", &ec2.SubnetArgs{
 			VpcId:               vpc.ID(),
-			CidrBlock:           pulumi.String("10.0.64.0/24"),
+			CidrBlock:           pulumi.String("10.0.128.0/24"),
 			MapPublicIpOnLaunch: pulumi.Bool(false),
-			AvailabilityZone:    pulumi.String("us-east-1b"),
+			AvailabilityZone:    pulumi.String("us-east-1a"),
 			Tags: pulumi.StringMap{
 				"Name": pulumi.String("consumer-private-subnet"),
 			},
+		})
+		if err != nil {
+			return err
+		}
+
+		// Create a NAT Gateway for the private subnets.
+		eip, err := ec2.NewEip(ctx, "myEip", &ec2.EipArgs{
+			Vpc: pulumi.Bool(true),
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = ec2.NewInternetGateway(ctx, "myInternetGateway", &ec2.InternetGatewayArgs{
+			VpcId: vpc.ID(),
+		})
+		if err != nil {
+			return err
+		}
+
+		nat, err := ec2.NewNatGateway(ctx, "myNatGateway", &ec2.NatGatewayArgs{
+			SubnetId:     subnet.ID(),
+			AllocationId: eip.ID(),
+			Tags: pulumi.StringMap{
+				"Name": pulumi.String("consumer-ngw"),
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		// Create a route table for the private subnets with a default route through the NAT Gateway.
+		privateRouteTable, err := ec2.NewRouteTable(ctx, "myPrivateRouteTable", &ec2.RouteTableArgs{
+			VpcId: vpc.ID(),
+			Routes: ec2.RouteTableRouteArray{
+				&ec2.RouteTableRouteArgs{
+					CidrBlock:    pulumi.String("0.0.0.0/0"),
+					NatGatewayId: nat.ID(),
+				},
+			},
+			Tags: pulumi.StringMap{
+				"Name": pulumi.String("consumer-rt"),
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		// Associate the route table with the private subnets.
+		_, err = ec2.NewRouteTableAssociation(ctx, "myPrivateRouteTableAssociation1", &ec2.RouteTableAssociationArgs{
+			RouteTableId: privateRouteTable.ID(),
+			SubnetId:     subnet.ID(),
 		})
 		if err != nil {
 			return err
@@ -90,7 +142,7 @@ func main() {
 			return err
 		}
 
-		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupEgress", &ec2.SecurityGroupRuleArgs{
+		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupEgress2", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("egress"),
 			FromPort:              pulumi.Int(0),
 			ToPort:                pulumi.Int(65535),
@@ -111,6 +163,20 @@ func main() {
 			SecurityGroupId:       gluesg.ID(),
 			SourceSecurityGroupId: gluesg.ID(),
 			Description:           pulumi.String("Allow ec2 instance traffic to ssm"),
+		})
+		if err != nil {
+			return err
+		}
+
+		// Create Endpoint for Session Manager
+		_, err = ec2.NewVpcEndpoint(ctx, "com.amazonaws.us-east-1.s3", &ec2.VpcEndpointArgs{
+			VpcId:         vpc.ID(),
+			ServiceName:   pulumi.String("com.amazonaws.us-east-1.s3"),
+			RouteTableIds: pulumi.StringArray{privateRouteTable.ID()},
+			// SecurityGroupIds: insert your security group IDs here if needed.
+			Tags: pulumi.StringMap{
+				"Name": pulumi.String("com.amazonaws.us-east-1.s3"),
+			},
 		})
 		if err != nil {
 			return err

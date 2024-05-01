@@ -1,3 +1,2 @@
 config:
-  aws:profile: DemoAdmin
-  aws:region: us-east-1
+  aws:profile: Demo1Admin
