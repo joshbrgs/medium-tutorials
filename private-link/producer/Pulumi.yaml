@@ -1,0 +1,7 @@
+name: privatelink-demo
+runtime: go
+description: PrivateLink demo Producer
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-go
