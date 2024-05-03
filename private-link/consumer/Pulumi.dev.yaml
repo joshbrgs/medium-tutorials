@@ -1,2 +1,2 @@
 config:
-  aws:profile: DemoAdmin
+  aws:profile: Demo1Admin

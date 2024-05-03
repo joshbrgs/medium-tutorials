@@ -22,9 +22,9 @@ func main() {
 		// Create private subnet
 		subnet, err := ec2.NewSubnet(ctx, "consumer-private-subnet", &ec2.SubnetArgs{
 			VpcId:               vpc.ID(),
-			CidrBlock:           pulumi.String("10.0.128.0/24"),
+			CidrBlock:           pulumi.String("10.0.0.0/24"),
 			MapPublicIpOnLaunch: pulumi.Bool(false),
-			AvailabilityZone:    pulumi.String("us-east-1a"),
+			AvailabilityZoneId:  pulumi.String("use1-az2"),
 			Tags: pulumi.StringMap{
 				"Name": pulumi.String("consumer-private-subnet"),
 			},
@@ -91,8 +91,8 @@ func main() {
 			VpcId:       vpc.ID(),
 			Egress: ec2.SecurityGroupEgressArray{
 				&ec2.SecurityGroupEgressArgs{
-					ToPort:     pulumi.Int(3306),
-					FromPort:   pulumi.Int(3306),
+					ToPort:     pulumi.Int(5432),
+					FromPort:   pulumi.Int(5432),
 					Protocol:   pulumi.String("tcp"),
 					CidrBlocks: pulumi.StringArray{pulumi.String("10.0.0.0/16")},
 				},
@@ -118,8 +118,8 @@ func main() {
 
 		_, err = ec2.NewSecurityGroupRule(ctx, "EndpointSecurityGroupIngress", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("ingress"),
-			FromPort:              pulumi.Int(3306),
-			ToPort:                pulumi.Int(3306),
+			FromPort:              pulumi.Int(5432),
+			ToPort:                pulumi.Int(5432),
 			Protocol:              pulumi.String("tcp"),
 			SecurityGroupId:       endpointsg.ID(),
 			SourceSecurityGroupId: gluesg.ID(),
@@ -128,11 +128,11 @@ func main() {
 		if err != nil {
 			return err
 		}
-		// Ingress rule for the RDS security group allowing MySQL traffic from the application server security group
+		// Ingress rule for the RDS security group allowing postgresql traffic from the application server security group
 		_, err = ec2.NewSecurityGroupRule(ctx, "GlueSecurityGroupEgress", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("egress"),
-			FromPort:              pulumi.Int(3306),
-			ToPort:                pulumi.Int(3306),
+			FromPort:              pulumi.Int(5432),
+			ToPort:                pulumi.Int(5432),
 			Protocol:              pulumi.String("tcp"),
 			SecurityGroupId:       gluesg.ID(),
 			SourceSecurityGroupId: endpointsg.ID(),
