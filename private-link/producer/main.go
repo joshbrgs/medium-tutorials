@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/rds"
@@ -129,15 +131,26 @@ func main() {
 		if err != nil {
 			return err
 		}
-
+		secretContent := `{"username":"etl_user","password":"mySuperSecretPassword123"}`
 		// Generate a random password and assign it to the secret
-		secretVersion, err := secretsmanager.NewSecretVersion(ctx, "secret-version", &secretsmanager.SecretVersionArgs{
+		_, err = secretsmanager.NewSecretVersion(ctx, "secret-version", &secretsmanager.SecretVersionArgs{
 			SecretId:     secret.ID(),
-			SecretString: pulumi.String("mySuperSecretPassword123!"),
+			SecretString: pulumi.String(secretContent),
 		})
 		if err != nil {
 			return err
 		}
+
+		// Parse the JSON string to extract key-value pairs
+		var secretValue map[string]interface{}
+		// Unmarshal the JSON string into a map
+		err = json.Unmarshal([]byte(secretContent), &secretValue)
+		if err != nil {
+			return err
+		}
+		// Access specific key-value pairs
+		username := secretValue["username"].(string)
+		password := secretValue["password"].(string)
 
 		// Create an IAM role for the RDS proxy
 		proxyRole, err := iam.NewRole(ctx, "proxy-role", &iam.RoleArgs{
@@ -182,21 +195,38 @@ func main() {
 			return err
 		}
 
+		// Create a new RDS Parameter Group for PostgreSQL where password encryption is set to md5
+		params, err := rds.NewParameterGroup(ctx, "myPostgresParameterGroup", &rds.ParameterGroupArgs{
+			Family: pulumi.String("postgres16"),
+			Name:   pulumi.String("myparams"),
+			Parameters: rds.ParameterGroupParameterArray{
+				&rds.ParameterGroupParameterArgs{
+					Name:  pulumi.String("password_encryption"),
+					Value: pulumi.String("md5"),
+				},
+			},
+			Description: pulumi.String("Parameter group where password encryption is set to md5"),
+		})
+		if err != nil {
+			return err
+		}
+
 		// Create an RDS instance using the password from Secrets Manager
 		rdsI, err := rds.NewInstance(ctx, "db", &rds.InstanceArgs{
-			InstanceClass:     pulumi.String(rds.InstanceType_T3_Micro), // Smallest instance size (as of AWS' current offering)
-			AllocatedStorage:  pulumi.Int(20),                           // Minimum allocated storage for an RDS instance in GB
-			Engine:            pulumi.String("postgres"),
-			EngineVersion:     pulumi.String("16"),
-			SkipFinalSnapshot: pulumi.Bool(true),
-			DbName:            pulumi.String("example"),
-			Identifier:        pulumi.String("mydatabase"),
-			DbSubnetGroupName: subnetGroup.Name,
+			InstanceClass:      pulumi.String(rds.InstanceType_T3_Micro), // Smallest instance size (as of AWS' current offering)
+			AllocatedStorage:   pulumi.Int(20),                           // Minimum allocated storage for an RDS instance in GB
+			Engine:             pulumi.String("postgres"),
+			EngineVersion:      pulumi.String("16"),
+			SkipFinalSnapshot:  pulumi.Bool(true),
+			DbName:             pulumi.String("example"),
+			Identifier:         pulumi.String("mydatabase"),
+			ParameterGroupName: params.Name,
+			DbSubnetGroupName:  subnetGroup.Name,
 			VpcSecurityGroupIds: pulumi.StringArray{
 				rdsSecurityGroup.ID(), // Associate the security group with the RDS instance
 			},
-			Username: pulumi.String("etl_user"),
-			Password: secretVersion.SecretString,
+			Username: pulumi.String(username),
+			Password: pulumi.String(password),
 			// ... other configuration ...
 		})
 		if err != nil {
@@ -209,7 +239,7 @@ func main() {
 			DebugLogging:      pulumi.Bool(false),
 			EngineFamily:      pulumi.String("POSTGRESQL"),
 			IdleClientTimeout: pulumi.Int(1800),
-			RequireTls:        pulumi.Bool(true),
+			RequireTls:        pulumi.Bool(false),
 			VpcSecurityGroupIds: pulumi.StringArray{
 				proxySecurityGroup.ID(),
 			},
