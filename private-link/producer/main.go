@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/rds"
@@ -66,7 +68,7 @@ func main() {
 
 		// Security Group for the RDS instance
 		rdsSecurityGroup, err := ec2.NewSecurityGroup(ctx, "rdsSecurityGroup", &ec2.SecurityGroupArgs{
-			Description: pulumi.String("Allow MySQL inbound traffic"),
+			Description: pulumi.String("Allow Postgres inbound traffic"),
 			VpcId:       vpc.ID(),
 		})
 		if err != nil {
@@ -75,71 +77,80 @@ func main() {
 
 		// Security Group for the application server
 		proxySecurityGroup, err := ec2.NewSecurityGroup(ctx, "proxySecurityGroup", &ec2.SecurityGroupArgs{
-			Description: pulumi.String("Allow MySQL traffic to RDS"),
+			Description: pulumi.String("Allow Postgres traffic to RDS"),
 			VpcId:       vpc.ID(),
 		})
 		if err != nil {
 			return err
 		}
 
-		// Ingress rule for the RDS security group allowing MySQL traffic from the application server security group
+		// Ingress rule for the RDS security group allowing Postgres traffic from the application server security group
 		_, err = ec2.NewSecurityGroupRule(ctx, "rdsSecurityGroupIngress", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("ingress"),
-			FromPort:              pulumi.Int(3306),
-			ToPort:                pulumi.Int(3306),
+			FromPort:              pulumi.Int(5432),
+			ToPort:                pulumi.Int(5432),
 			Protocol:              pulumi.String("tcp"),
 			SecurityGroupId:       rdsSecurityGroup.ID(),
 			SourceSecurityGroupId: proxySecurityGroup.ID(),
-			Description:           pulumi.String("MySQL access from proxy security group"),
+			Description:           pulumi.String("Postgres access from proxy security group"),
 		})
 		if err != nil {
 			return err
 		}
 
-		// Egress rule for the application server security group allowing MySQL traffic to the RDS security group
+		// Egress rule for the application server security group allowing Postgres traffic to the RDS security group
 		_, err = ec2.NewSecurityGroupRule(ctx, "proxySecurityGroupEgress", &ec2.SecurityGroupRuleArgs{
 			Type:                  pulumi.String("egress"),
-			FromPort:              pulumi.Int(3306),
-			ToPort:                pulumi.Int(3306),
+			FromPort:              pulumi.Int(5432),
+			ToPort:                pulumi.Int(5432),
 			Protocol:              pulumi.String("tcp"),
 			SecurityGroupId:       proxySecurityGroup.ID(),
 			SourceSecurityGroupId: rdsSecurityGroup.ID(),
-			Description:           pulumi.String("MySQL access to RDS security group"),
+			Description:           pulumi.String("Postgres access to RDS security group"),
 		})
 		if err != nil {
 			return err
 		}
 
-		// Ingress rule for the application server security group allowing MySQL traffic from the VPC CIDR
+		// Ingress rule for the application server security group allowing Postgres traffic from the VPC CIDR
 		_, err = ec2.NewSecurityGroupRule(ctx, "proxySecurityGroupIngress", &ec2.SecurityGroupRuleArgs{
 			Type:            pulumi.String("ingress"),
-			FromPort:        pulumi.Int(3306),
-			ToPort:          pulumi.Int(3306),
+			FromPort:        pulumi.Int(5432),
+			ToPort:          pulumi.Int(5432),
 			Protocol:        pulumi.String("tcp"),
 			SecurityGroupId: proxySecurityGroup.ID(),
 			CidrBlocks:      pulumi.StringArray{pulumi.String("10.0.0.0/16")},
-			Description:     pulumi.String("MySQL access from within the VPC"),
+			Description:     pulumi.String("Postgres access from within the VPC"),
 		})
 		if err != nil {
 			return err
 		}
 
 		// Create a new AWS Secrets Manager secret to store the database credentials
-		secret, err := secretsmanager.NewSecret(ctx, "secret", &secretsmanager.SecretArgs{
-			Name: pulumi.String("dbPassword"),
+		secret, err := secretsmanager.NewSecret(ctx, "secret", &secretsmanager.SecretArgs{})
+		if err != nil {
+			return err
+		}
+		secretContent := `{"username":"etl_user","password":"mySuperSecretPassword123"}`
+		// Generate a random password and assign it to the secret
+		_, err = secretsmanager.NewSecretVersion(ctx, "secret-version", &secretsmanager.SecretVersionArgs{
+			SecretId:     secret.ID(),
+			SecretString: pulumi.String(secretContent),
 		})
 		if err != nil {
 			return err
 		}
 
-		// Generate a random password and assign it to the secret
-		secretVersion, err := secretsmanager.NewSecretVersion(ctx, "secret-version", &secretsmanager.SecretVersionArgs{
-			SecretId:     secret.ID(),
-			SecretString: pulumi.String("mySuperSecretPassword123!"),
-		})
+		// Parse the JSON string to extract key-value pairs
+		var secretValue map[string]interface{}
+		// Unmarshal the JSON string into a map
+		err = json.Unmarshal([]byte(secretContent), &secretValue)
 		if err != nil {
 			return err
 		}
+		// Access specific key-value pairs
+		username := secretValue["username"].(string)
+		password := secretValue["password"].(string)
 
 		// Create an IAM role for the RDS proxy
 		proxyRole, err := iam.NewRole(ctx, "proxy-role", &iam.RoleArgs{
@@ -159,30 +170,22 @@ func main() {
 		}
 
 		policyProxy, err := iam.NewPolicy(ctx, "proxy-secret-policy", &iam.PolicyArgs{
-			Policy: pulumi.String(`{
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "rds:*"
-                        ],
-                        "Resource": "*"
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "secretsmanager:*"
-                        ],
-                        "Resource": "arn:aws:secretsmanager:us-east-1:*:secret:dbPassword*"
-                    } 
-                ]
-            }`),
+			Description: pulumi.String("Policy that grants access to my secret"),
+			Policy: secret.Arn.ApplyT(func(arn string) (string, error) { // Use the ARN of the secret
+				jsonPolicy := `{
+					"Version": "2012-10-17",
+					"Statement": [{
+						"Effect": "Allow",
+						"Action": "secretsmanager:*",
+						"Resource": "` + arn + `"
+					}]
+				}`
+				return jsonPolicy, nil
+			}).(pulumi.StringOutput),
 		})
 		if err != nil {
 			return err
 		}
-
 		// Attach the required policy to the role
 		_, err = iam.NewRolePolicyAttachment(ctx, "proxy-role-attachment", &iam.RolePolicyAttachmentArgs{
 			Role:      proxyRole.ID(),
@@ -192,18 +195,38 @@ func main() {
 			return err
 		}
 
+		// Create a new RDS Parameter Group for PostgreSQL where password encryption is set to md5
+		params, err := rds.NewParameterGroup(ctx, "myPostgresParameterGroup", &rds.ParameterGroupArgs{
+			Family: pulumi.String("postgres16"),
+			Name:   pulumi.String("myparams"),
+			Parameters: rds.ParameterGroupParameterArray{
+				&rds.ParameterGroupParameterArgs{
+					Name:  pulumi.String("password_encryption"),
+					Value: pulumi.String("md5"),
+				},
+			},
+			Description: pulumi.String("Parameter group where password encryption is set to md5"),
+		})
+		if err != nil {
+			return err
+		}
+
 		// Create an RDS instance using the password from Secrets Manager
 		rdsI, err := rds.NewInstance(ctx, "db", &rds.InstanceArgs{
-			InstanceClass:     pulumi.String(rds.InstanceType_T3_Micro), // Smallest instance size (as of AWS' current offering)
-			AllocatedStorage:  pulumi.Int(20),                           // Minimum allocated storage for an RDS instance in GB
-			Engine:            pulumi.String("mysql"),
-			EngineVersion:     pulumi.String("5.7"),
-			DbSubnetGroupName: subnetGroup.Name,
+			InstanceClass:      pulumi.String(rds.InstanceType_T3_Micro), // Smallest instance size (as of AWS' current offering)
+			AllocatedStorage:   pulumi.Int(20),                           // Minimum allocated storage for an RDS instance in GB
+			Engine:             pulumi.String("postgres"),
+			EngineVersion:      pulumi.String("16"),
+			SkipFinalSnapshot:  pulumi.Bool(true),
+			DbName:             pulumi.String("example"),
+			Identifier:         pulumi.String("mydatabase"),
+			ParameterGroupName: params.Name,
+			DbSubnetGroupName:  subnetGroup.Name,
 			VpcSecurityGroupIds: pulumi.StringArray{
 				rdsSecurityGroup.ID(), // Associate the security group with the RDS instance
 			},
-			Username: pulumi.String("admin"),
-			Password: secretVersion.SecretString,
+			Username: pulumi.String(username),
+			Password: pulumi.String(password),
 			// ... other configuration ...
 		})
 		if err != nil {
@@ -214,9 +237,9 @@ func main() {
 		rproxy, err := rds.NewProxy(ctx, "db-proxy", &rds.ProxyArgs{
 			Name:              pulumi.String("db-proxy"),
 			DebugLogging:      pulumi.Bool(false),
-			EngineFamily:      pulumi.String("MYSQL"),
+			EngineFamily:      pulumi.String("POSTGRESQL"),
 			IdleClientTimeout: pulumi.Int(1800),
-			RequireTls:        pulumi.Bool(true),
+			RequireTls:        pulumi.Bool(false),
 			VpcSecurityGroupIds: pulumi.StringArray{
 				proxySecurityGroup.ID(),
 			},
