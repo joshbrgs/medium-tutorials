@@ -8,6 +8,7 @@
 *.so
 *.dylib
 *.env
+*.DS_Store
 # Test binary, built with `go test -c`
 *.test
 
@@ -16,6 +17,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
-
+**/env/
+**/__pycache__/
 # Go workspace file
 go.work
