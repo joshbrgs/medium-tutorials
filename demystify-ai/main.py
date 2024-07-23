@@ -1,21 +1,36 @@
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
+from pdf_loader import PDFLoader
+from document_splitter import DocumentSplitter
+from embeddings_generator import EmbeddingsGenerator
+from rag_agent import RAGAgent
+from utils import create_prompt_template
+from langchain_ollama import ChatOllama
 
-file_path = "./robinhood-2023-annual-report.pdf"
-loader = PyPDFLoader(file_path)
 
-docs = loader.load()
+def main():
+    file_path = input("Please enter the path to the PDF file: ")
+    user_prompt = input("Please enter your prompt for the LLM: ")
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-splits = text_splitter.split_documents(docs)
+    pdf_loader = PDFLoader(file_path)
+    documents = pdf_loader.load_documents()
 
-embeddings = OllamaEmbeddings(model="llama3")
+    splitter = DocumentSplitter()
+    splits = splitter.split_documents(documents)
 
-vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
+    embeddings_generator = EmbeddingsGenerator()
+    retriever = embeddings_generator.generate_embeddings(splits)
 
-query = "What is the 2023 net profit?"
-search = vectorstore.similarity_search(query)
+    llm = ChatOllama(model="llama3", temperature=0)
+    prompt_template = create_prompt_template()
 
-print(search[0].page_content)
+    rag_agent = RAGAgent(retriever, llm, prompt_template)
+    results = rag_agent.get_answer(user_prompt)
+
+    print(results["answer"])
+
+    for document in results["context"]:
+        print(document)
+        print()
+
+
+if __name__ == "__main__":
+    main()
