@@ -2,6 +2,7 @@ package users
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/joshbrgs/mongorm/cmd/mongorm"
@@ -10,7 +11,7 @@ import (
 )
 
 func main() {
-	server := server.NewServer(
+	e := server.NewServer(
 		server.WithPort(8000),
 	)
 
@@ -23,19 +24,34 @@ func main() {
 		panic(err)
 	}
 
+	// defer client.Disconnect()
+
+	url := "amqp://localhost:5672"
+
+	// Create a connection with options
+	conn, err := server.NewRabbitMQConnection(url,
+		server.WithExchange("user_exchange", "fanout", nil),
+		server.WithQueue("user_queue", nil),
+		// WithCredentials(...), // Set username and password if needed
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close() // Close connection on exit
+
 	db := client.Database("users")
 
 	userService := NewUserService(db)
 
 	go func() {
-		server.Logger.Fatal(server.Start(""))
+		e.Logger.Fatal(e.Start(""))
 	}()
 
-	server.Logger.Info("server started on http://" + server.Server.Addr)
+	e.Logger.Info("server started on http://" + e.Server.Addr)
 
-	server.POST("/users", userService.createUserHandler)
-	server.GET("/users/:id", userService.getUserByIdHandler)
-	server.DELETE("/users/:id", userService.deleteUserHandler)
-	server.PUT("/users/:id", userService.updateUserHandler)
-	server.POST("/login", userService.loginHandler)
+	e.POST("/users", userService.createUserHandler)
+	e.GET("/users/:id", userService.getUserByIdHandler)
+	e.DELETE("/users/:id", userService.deleteUserHandler)
+	e.PUT("/users/:id", userService.updateUserHandler)
+	e.POST("/login", userService.loginHandler)
 }
