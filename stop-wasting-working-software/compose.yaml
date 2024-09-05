@@ -8,24 +8,17 @@ services:
   #   depends_on:
   #     db:
   #       condition: service_healthy
-  # auth:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 9000:9000
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  # users:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8081:8081
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
+  users:
+    build:
+      context: .
+      target: final
+    ports:
+      - 8081:8081
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
   # nemesis:
   #   build:
   #     context: .
@@ -60,7 +53,19 @@ services:
   #   depends_on:
   #     db:
   #       condition: service_healthy
-  #
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - bad_inc_net
+
   rabbitMq:
     image: rabbitmq:3-management-alpine
     container_name: "rabbitmq"
@@ -119,6 +124,7 @@ services:
 
 volumes:
   kong-database:
+  mongo_data:
 
 networks:
   bad_inc_net:
