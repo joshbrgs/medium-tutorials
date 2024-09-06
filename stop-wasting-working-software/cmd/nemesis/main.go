@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	pb "path/to/generated/proto/files"
+	pb "github.com/medium-tutorials/bad-inc/cmd/nemesis/api/gen"
 
 	"google.golang.org/grpc"
 )

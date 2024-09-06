@@ -34,7 +34,7 @@ type UserService struct {
 }
 
 var (
-	key               = os.Getenv("secretKey")
+	key               = os.Getenv("SECRET_KEY")
 	secretKey         = []byte(key)
 	jwtExpiryDuration = 24 * time.Hour
 )

@@ -2,13 +2,11 @@ services:
   notifications:
     build:
       context: .
-      target: final
       dockerfile: ./cmd/notifications/Dockerfile
     ports:
-      - 8001:8001
-    depends_on:
-      db:
-        condition: service_healthy
+      - 8091:8091
+    networks:
+      - bad_inc_net
   users:
     build:
       context: .
@@ -18,19 +16,16 @@ services:
       - 8081:8081
     env_file:
       - .env
-    depends_on:
-      mongodb:
-        condition: service_healthy
+    networks:
+      - bad_inc_net
   nemesis:
     build:
       context: .
-      target: final
       dockerfile: ./cmd/nemesis/Dockerfile
     ports:
       - 50051:50051
-    depends_on:
-      db:
-        condition: service_healthy
+    networks:
+      - bad_inc_net
   mongodb:
     image: mongo:latest
     container_name: mongodb
@@ -50,6 +45,8 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
+    env_file:
+      - .env
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
@@ -65,6 +62,8 @@ services:
       POSTGRES_PASSWORD: kong
     volumes:
       - kong-database:/var/lib/postgresql/data
+    networks:
+      - bad_inc_net
 
   kong-migration:
     image: kong:latest
@@ -78,6 +77,8 @@ services:
       KONG_PG_PASSWORD: kong
       KONG_CASSANDRA_CONTACT_POINTS: kong-database
     command: ["kong", "migrations", "bootstrap"]
+    networks:
+      - bad_inc_net
 
   kong:
     image: kong:latest
@@ -99,6 +100,8 @@ services:
       - "8443:8443"
       - "8001:8001"
       - "8444:8444"
+    networks:
+      - bad_inc_net
 
 volumes:
   kong-database:

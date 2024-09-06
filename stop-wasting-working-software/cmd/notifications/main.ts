@@ -22,5 +22,5 @@ const handler = async (req: Request): Promise<Response> => {
   return new Response("Not Found", { status: 404 });
 };
 
-console.log("HTTP server running on http://localhost:8001");
-await serve(handler, { port: 8001 });
+console.log("HTTP server running on http://localhost:8091");
+await serve(handler, { port: 8091 });
