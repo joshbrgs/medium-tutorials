@@ -29,19 +29,15 @@ func main() {
 	url := "amqp://localhost:5672"
 
 	// Create a connection with options
-	conn, err := server.NewRabbitMQConnection(url,
-		server.WithExchange("user_exchange", "fanout", nil),
-		server.WithQueue("user_queue", nil),
-		// WithCredentials(...), // Set username and password if needed
-	)
+	rmq, err := server.NewRabbitMQ(server.WithRabbitMQURL(url))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create RabbitMQ connection: %v", err)
 	}
-	defer conn.Close() // Close connection on exit
+	defer rmq.Close()
 
 	db := client.Database("users")
 
-	userService := NewUserService(db)
+	userService := NewUserService(db, rmq)
 
 	go func() {
 		e.Logger.Fatal(e.Start(""))

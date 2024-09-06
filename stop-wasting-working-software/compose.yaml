@@ -1,17 +1,19 @@
 services:
-  # notifications:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8090:8090
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
+  notifications:
+    build:
+      context: .
+      target: final
+      dockerfile: ./cmd/notifications/Dockerfile
+    ports:
+      - 8001:8001
+    depends_on:
+      db:
+        condition: service_healthy
   users:
     build:
       context: .
       target: final
+      dockerfile: ./cmd/users/Dockerfile
     ports:
       - 8081:8081
     env_file:
@@ -19,40 +21,16 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-  # nemesis:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8070:8070
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  # makers:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8050:8050
-  #   depends_on:
-  #     db:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8040:8040
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  # readers:
-  #   build:
-  #     context: .
-  #     target: final
-  #   ports:
-  #     - 8060:8060
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
+  nemesis:
+    build:
+      context: .
+      target: final
+      dockerfile: ./cmd/nemesis/Dockerfile
+    ports:
+      - 50051:50051
+    depends_on:
+      db:
+        condition: service_healthy
   mongodb:
     image: mongo:latest
     container_name: mongodb

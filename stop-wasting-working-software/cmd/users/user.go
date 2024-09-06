@@ -3,10 +3,13 @@ package users
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/joshbrgs/mongorm/cmd/mongorm"
+	"github.com/medium-tutorials/bad-inc/pkgs/server"
 	"golang.org/x/crypto/bcrypt"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -27,16 +30,19 @@ type User struct {
 
 type UserService struct {
 	db *mongo.Database
+	mq *server.RabbitMQ
 }
 
 var (
-	secretKey         = []byte("your_secret_key") // Replace with a secure secret key
+	key               = os.Getenv("secretKey")
+	secretKey         = []byte(key)
 	jwtExpiryDuration = 24 * time.Hour
 )
 
-func NewUserService(db *mongo.Database) *UserService {
+func NewUserService(db *mongo.Database, rmq *server.RabbitMQ) *UserService {
 	return &UserService{
 		db: db,
+		mq: rmq,
 	}
 }
 
@@ -44,7 +50,12 @@ func (s *UserService) CreateUser(ctx context.Context, user User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	userModel := &user                                // Cast User to a pointer for mongorm.Model
+	userModel := &user // Cast User to a pointer for mongorm.Model
+
+	if err := s.mq.Publish(ctx, "users", fmt.Sprintf("New User created: %s", userModel.ScreenName)); err != nil {
+		log.Fatalf("Failed to publish message: %v", err)
+	}
+
 	return user.Create(ctx, s.db, "users", userModel) // Use mongorm.Create
 }
 
@@ -58,7 +69,11 @@ func (s *UserService) FetchUserByID(ctx context.Context, userID primitive.Object
 
 func (s *UserService) DeleteUser(ctx context.Context, userID primitive.ObjectID) error {
 	var user User
-	filter := bson.M{"_id": userID}                // Create filter for deletion
+	filter := bson.M{"_id": userID}
+	// Create filter for deletion
+	if err := s.mq.Publish(ctx, "users", fmt.Sprintf("User deleted: %s", userID)); err != nil {
+		log.Fatalf("Failed to publish message: %v", err)
+	}
 	return user.Delete(ctx, s.db, "users", filter) // Use mongorm.Delete
 }
 
@@ -80,7 +95,6 @@ func (s *UserService) authenticateUser(username, password string) (string, error
 	if err := user.Read(ctx, s.db, "users", bson.M{"username": username}, &user); err != nil {
 		return "", fmt.Errorf("user not found")
 	}
-	// err := collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return "", fmt.Errorf("invalid password")

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package nemesis;
+
+option go_package = "github.com/medium-tutorials/bad-inc/cmd/nemesis/api/gen;gen";
+
+service NemesisService {
+  rpc CreateNemesis(CreateNemesisRequest) returns (NemesisResponse);
+  rpc GetNemesis(GetNemesisRequest) returns (NemesisResponse);
+  rpc UpdateNemesis(UpdateNemesisRequest) returns (NemesisResponse);
+  rpc DeleteNemesis(DeleteNemesisRequest) returns (DeleteNemesisResponse);
+  rpc ListNemeses(Empty) returns (ListNemesesResponse);
+}
+
+message CreateNemesisRequest {
+  string person_id = 1;
+  string nemesis_name = 2;
+  int64 nemesis_power = 3;
+}
+
+message GetNemesisRequest {
+  string nemesis_id = 1;
+}
+
+message UpdateNemesisRequest {
+  string nemesis_id = 1;
+  string nemesis_name = 2;
+  int64 nemesis_power = 3;
+}
+
+message DeleteNemesisRequest {
+  string nemesis_id = 1;
+}
+
+message Empty {}
+
+message NemesisResponse {
+  string nemesis_id = 1;
+  string person_id = 2;
+  string nemesis_name = 3;
+  int64 nemesis_power = 4;
+}
+
+message DeleteNemesisResponse {
+  string message = 1;
+}
+
+message ListNemesesResponse {
+  repeated NemesisResponse nemeses = 1;
+}

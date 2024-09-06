@@ -2,142 +2,134 @@ package server
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+	"log"
 
-	"github.com/rabbitmq/amqp091-go"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// RabbitMQOption represents a function that modifies RabbitMQ connection options
-type RabbitMQOption func(*amqp.Connection)
-
-type RabbitMQPublisher struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+// Config struct holds RabbitMQ connection configuration
+type Config struct {
+	URL string
 }
 
-// WithRabbitMQURL sets the RabbitMQ URL option
-func WithRabbitMQURL(url string) RabbitMQOption {
-	return func(conn *amqp.Connection) {
-		// This function can handle any additional connection configuration
-		// For example, setting TLS configuration, credentials, etc.
-		// You can parse the URL and configure the connection accordingly
+// ConnectionOption defines the options pattern for setting connection configuration
+type ConnectionOption func(*Config) error
+
+// WithRabbitMQURL sets the RabbitMQ URL in the config
+func WithRabbitMQURL(url string) ConnectionOption {
+	return func(c *Config) error {
+		c.URL = url
+		return nil
 	}
 }
 
-// WithQueue declares a queue with the specified name and options
-func WithQueue(name string, options amqp.Table) RabbitMQOption {
-	return func(conn *amqp.Connection) {
-		ch, err := conn.Channel()
-		if err != nil {
-			// Handle error
-			return
-		}
-		// Declare the queue on the connection
-		// You can pass additional options such as durable, exclusive, autoDelete, etc.
-		_, err = ch.QueueDeclare(name, false, false, false, false, options)
-		if err != nil {
-			// Handle error
-		}
-	}
+// RabbitMQ holds the connection and channel
+type RabbitMQ struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
 }
 
-// WithExchange declares an exchange with the specified name, type, and options
-func WithExchange(name, kind string, options amqp.Table) RabbitMQOption {
-	return func(conn *amqp.Connection) {
-		ch, err := conn.Channel()
-		if err != nil {
-			// Handle error
-			return
-		}
-		// Declare the exchange on the connection
-		// You can pass additional options such as durable, autoDelete, etc.
-		if err = ch.ExchangeDeclare(name, kind, false, false, false, false, options); err != nil {
-			// Handle error
-		}
-	}
-}
-
-// WithPublish confirms publishing to a specific exchange with the provided routing key
-func WithPublish(exchange, routingKey string) RabbitMQOption {
-	return func(conn *amqp.Connection) {
-		publisher, err := NewRabbitMQPublisher()
-		if err != nil {
-			// Handle error
-			return
-		}
-
-		defer publisher.Close()
-	}
-}
-
-// NewRabbitMQConnection initializes a new connection to RabbitMQ with the provided options
-func NewRabbitMQConnection(url string, opts ...RabbitMQOption) (*amqp.Connection, error) {
-	// Create a new RabbitMQ connection
-	conn, err := amqp.Dial(url)
-	if err != nil {
-		return nil, err
+// NewRabbitMQ initializes a RabbitMQ connection and channel with the provided options
+func NewRabbitMQ(opts ...ConnectionOption) (*RabbitMQ, error) {
+	config := &Config{
+		URL: "amqp://guest:guest@localhost:5672/", // default URL
 	}
 
-	// Apply provided options
+	// Apply options
 	for _, opt := range opts {
-		opt(conn)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 
-	return conn, nil
-}
-
-func NewRabbitMQPublisher(url string) (*RabbitMQPublisher, error) {
-	conn, err := amqp.Dial(url)
+	// Establish connection
+	conn, err := amqp.Dial(config.URL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
 
-	ch, err := conn.Channel()
+	// Create a channel
+	channel, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to open a channel: %w", err)
 	}
 
-	return &RabbitMQPublisher{conn, ch}, nil
+	return &RabbitMQ{
+		conn:    conn,
+		channel: channel,
+	}, nil
 }
 
-func (p *RabbitMQPublisher) Close() error {
-	if p.ch != nil {
-		err := p.ch.Close()
-		if err != nil {
-			return err
-		}
+// Close gracefully closes the RabbitMQ connection and channel
+func (r *RabbitMQ) Close() {
+	if r.channel != nil {
+		r.channel.Close()
 	}
-	if p.conn != nil {
-		return p.conn.Close()
+	if r.conn != nil {
+		r.conn.Close()
 	}
-	return nil
 }
 
-func (p *RabbitMQPublisher) PublishNotification(ctx context.Context, exchange string, notification string) error {
-	// Declare exchange and queue if not already declared
-	// ... (same as before)
-
-	body, err := json.Marshal(notification)
-	if err != nil {
-		return err
-	}
-
-	err = p.ch.PublishWithContext(
-		ctx,
-		exchange, // Exchange name
-		"",
-		false, // Mandatory
-		false, // Immediate
-		amqp091.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		},
+// Publish sends a message to the specified queue
+func (r *RabbitMQ) Publish(ctx context.Context, queueName, body string) error {
+	_, err := r.channel.QueueDeclare(
+		queueName, // queue name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
+	err = r.channel.PublishWithContext(
+		ctx,
+		"",        // exchange
+		queueName, // routing key (queue name)
+		false,     // mandatory
+		false,     // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+	if err != nil {
+		return fmt.Errorf("failed to publish message: %w", err)
+	}
+
+	log.Printf("Message published to queue %s: %s", queueName, body)
 	return nil
+}
+
+// Consume consumes messages from the specified queue
+func (r *RabbitMQ) Consume(queueName string) (<-chan amqp.Delivery, error) {
+	_, err := r.channel.QueueDeclare(
+		queueName, // queue name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to declare queue: %w", err)
+	}
+
+	messages, err := r.channel.Consume(
+		queueName, // queue name
+		"",        // consumer tag
+		true,      // auto-ack
+		false,     // exclusive
+		false,     // no-local
+		false,     // no-wait
+		nil,       // arguments
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register a consumer: %w", err)
+	}
+
+	return messages, nil
 }
