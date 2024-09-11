@@ -23,7 +23,7 @@ const (
 	NemesisService_GetNemesis_FullMethodName    = "/nemesis.NemesisService/GetNemesis"
 	NemesisService_UpdateNemesis_FullMethodName = "/nemesis.NemesisService/UpdateNemesis"
 	NemesisService_DeleteNemesis_FullMethodName = "/nemesis.NemesisService/DeleteNemesis"
-	NemesisService_ListNemeses_FullMethodName   = "/nemesis.NemesisService/ListNemeses"
+	NemesisService_ListNemesis_FullMethodName   = "/nemesis.NemesisService/ListNemesis"
 )
 
 // NemesisServiceClient is the client API for NemesisService service.
@@ -33,8 +33,8 @@ type NemesisServiceClient interface {
 	CreateNemesis(ctx context.Context, in *CreateNemesisRequest, opts ...grpc.CallOption) (*NemesisResponse, error)
 	GetNemesis(ctx context.Context, in *GetNemesisRequest, opts ...grpc.CallOption) (*NemesisResponse, error)
 	UpdateNemesis(ctx context.Context, in *UpdateNemesisRequest, opts ...grpc.CallOption) (*NemesisResponse, error)
-	DeleteNemesis(ctx context.Context, in *DeleteNemesisRequest, opts ...grpc.CallOption) (*DeleteNemesisResponse, error)
-	ListNemeses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListNemesesResponse, error)
+	DeleteNemesis(ctx context.Context, in *DeleteNemesisRequest, opts ...grpc.CallOption) (*Empty, error)
+	ListNemesis(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListNemesisResponse, error)
 }
 
 type nemesisServiceClient struct {
@@ -75,9 +75,9 @@ func (c *nemesisServiceClient) UpdateNemesis(ctx context.Context, in *UpdateNeme
 	return out, nil
 }
 
-func (c *nemesisServiceClient) DeleteNemesis(ctx context.Context, in *DeleteNemesisRequest, opts ...grpc.CallOption) (*DeleteNemesisResponse, error) {
+func (c *nemesisServiceClient) DeleteNemesis(ctx context.Context, in *DeleteNemesisRequest, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteNemesisResponse)
+	out := new(Empty)
 	err := c.cc.Invoke(ctx, NemesisService_DeleteNemesis_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -85,10 +85,10 @@ func (c *nemesisServiceClient) DeleteNemesis(ctx context.Context, in *DeleteNeme
 	return out, nil
 }
 
-func (c *nemesisServiceClient) ListNemeses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListNemesesResponse, error) {
+func (c *nemesisServiceClient) ListNemesis(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListNemesisResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListNemesesResponse)
-	err := c.cc.Invoke(ctx, NemesisService_ListNemeses_FullMethodName, in, out, cOpts...)
+	out := new(ListNemesisResponse)
+	err := c.cc.Invoke(ctx, NemesisService_ListNemesis_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ type NemesisServiceServer interface {
 	CreateNemesis(context.Context, *CreateNemesisRequest) (*NemesisResponse, error)
 	GetNemesis(context.Context, *GetNemesisRequest) (*NemesisResponse, error)
 	UpdateNemesis(context.Context, *UpdateNemesisRequest) (*NemesisResponse, error)
-	DeleteNemesis(context.Context, *DeleteNemesisRequest) (*DeleteNemesisResponse, error)
-	ListNemeses(context.Context, *Empty) (*ListNemesesResponse, error)
+	DeleteNemesis(context.Context, *DeleteNemesisRequest) (*Empty, error)
+	ListNemesis(context.Context, *Empty) (*ListNemesisResponse, error)
 	mustEmbedUnimplementedNemesisServiceServer()
 }
 
@@ -123,11 +123,11 @@ func (UnimplementedNemesisServiceServer) GetNemesis(context.Context, *GetNemesis
 func (UnimplementedNemesisServiceServer) UpdateNemesis(context.Context, *UpdateNemesisRequest) (*NemesisResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateNemesis not implemented")
 }
-func (UnimplementedNemesisServiceServer) DeleteNemesis(context.Context, *DeleteNemesisRequest) (*DeleteNemesisResponse, error) {
+func (UnimplementedNemesisServiceServer) DeleteNemesis(context.Context, *DeleteNemesisRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteNemesis not implemented")
 }
-func (UnimplementedNemesisServiceServer) ListNemeses(context.Context, *Empty) (*ListNemesesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListNemeses not implemented")
+func (UnimplementedNemesisServiceServer) ListNemesis(context.Context, *Empty) (*ListNemesisResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListNemesis not implemented")
 }
 func (UnimplementedNemesisServiceServer) mustEmbedUnimplementedNemesisServiceServer() {}
 func (UnimplementedNemesisServiceServer) testEmbeddedByValue()                        {}
@@ -222,20 +222,20 @@ func _NemesisService_DeleteNemesis_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NemesisService_ListNemeses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _NemesisService_ListNemesis_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NemesisServiceServer).ListNemeses(ctx, in)
+		return srv.(NemesisServiceServer).ListNemesis(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: NemesisService_ListNemeses_FullMethodName,
+		FullMethod: NemesisService_ListNemesis_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NemesisServiceServer).ListNemeses(ctx, req.(*Empty))
+		return srv.(NemesisServiceServer).ListNemesis(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -264,8 +264,8 @@ var NemesisService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NemesisService_DeleteNemesis_Handler,
 		},
 		{
-			MethodName: "ListNemeses",
-			Handler:    _NemesisService_ListNemeses_Handler,
+			MethodName: "ListNemesis",
+			Handler:    _NemesisService_ListNemesis_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -6,11 +6,12 @@ toolchain go1.22.5
 
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/joshbrgs/mongorm v0.0.0-20240822174345-33e1b3dcddc6
+	github.com/joshbrgs/mongorm v0.0.0-20240909165250-b439eef4a244
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/rabbitmq/amqp091-go v1.9.0
 	go.mongodb.org/mongo-driver v1.16.1
 	golang.org/x/crypto v0.24.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20240604185151-ef581f913117
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
 )

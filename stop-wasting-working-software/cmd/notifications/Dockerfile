@@ -1,5 +1,5 @@
 # Use the official Deno image as the base image
-FROM denoland/deno:alpine-1.36.4
+FROM denoland/deno:latest
 
 # Set the working directory inside the container
 WORKDIR /app

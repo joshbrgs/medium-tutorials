@@ -1,47 +1,33 @@
-# syntax=docker/dockerfile:1
+# Start from the official Go image for building the binary
+FROM golang:1.22 AS builder
 
-################################################################################
-# Create a stage for building the application.
-ARG GO_VERSION=1.22
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
-WORKDIR /src
+# Set the working directory
+WORKDIR /app
 
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /go/pkg/mod/ to speed up subsequent builds.
-# Leverage bind mounts to go.sum and go.mod to avoid having to copy them into
-# the container.
+# Copy the Go module files
 COPY go.mod go.sum ./
-RUN go mod download -x
 
-# Copy the entire application source code
+# Download dependencies
+RUN go mod download
+
+# Copy the source code
 COPY . .
 
-# Build the application for the user service
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /users ./cmd/users
+# Build the Go binary with the correct architecture
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o users ./cmd/users
 
-################################################################################
-# Create a new stage for running the application that contains the minimal
-# runtime dependencies for the application.
-FROM alpine:latest AS final
+# Start a new stage from a minimal base image
+FROM alpine:3.18
 
-# Install runtime dependencies
-RUN apk --update add \
-  ca-certificates \
-  tzdata \
-  && \
-  update-ca-certificates
+# Install any necessary dependencies (optional)
+RUN apk add --no-cache ca-certificates
 
-# Create a non-privileged user that the app will run under.
+# Copy the binary from the builder stage
+COPY --from=builder /app/users /users
 
-
-# Copy the executable from the "build" stage.
-COPY --from=build /users /
-
-# Ensure the binary is executable
 RUN chmod +x /users
-# Expose the port that the application listens on.
+
 EXPOSE 8081
 
-# What the container should run when it is started.
-ENTRYPOINT [ "/users" ]
-
+# Set the binary as the entrypoint
+ENTRYPOINT ["/users"]

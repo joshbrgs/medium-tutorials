@@ -4,47 +4,63 @@ package nemesis;
 
 option go_package = "github.com/medium-tutorials/bad-inc/cmd/nemesis/api/gen;gen";
 
+import "google/api/annotations.proto";
+
 service NemesisService {
-  rpc CreateNemesis(CreateNemesisRequest) returns (NemesisResponse);
-  rpc GetNemesis(GetNemesisRequest) returns (NemesisResponse);
-  rpc UpdateNemesis(UpdateNemesisRequest) returns (NemesisResponse);
-  rpc DeleteNemesis(DeleteNemesisRequest) returns (DeleteNemesisResponse);
-  rpc ListNemeses(Empty) returns (ListNemesesResponse);
+    rpc CreateNemesis(CreateNemesisRequest) returns (NemesisResponse){
+        option (google.api.http) = {
+            post: "/nemesis"
+         };
+    };
+    rpc GetNemesis(GetNemesisRequest) returns (NemesisResponse){
+        option (google.api.http) = {
+            get: "/nemesis/{id}"
+         };
+    };
+    rpc UpdateNemesis(UpdateNemesisRequest) returns (NemesisResponse){
+        option (google.api.http) = {
+            patch: "/nemesis/{id}"
+         };
+    };
+    rpc DeleteNemesis(DeleteNemesisRequest) returns (Empty){
+        option (google.api.http) = {
+            delete: "/nemesis/{id}"
+         };
+    };
+    rpc ListNemesis(Empty) returns (ListNemesisResponse){
+        option (google.api.http) = {
+            get: "/nemesis"
+        };
+    };
 }
 
 message CreateNemesisRequest {
-  string person_id = 1;
-  string nemesis_name = 2;
-  int64 nemesis_power = 3;
+    string name = 1;
+    string power = 2;
 }
 
 message GetNemesisRequest {
-  string nemesis_id = 1;
+    string id = 1;
 }
 
 message UpdateNemesisRequest {
-  string nemesis_id = 1;
-  string nemesis_name = 2;
-  int64 nemesis_power = 3;
+    string id = 1;
+    string name = 2;
+    string power = 3;
 }
 
 message DeleteNemesisRequest {
-  string nemesis_id = 1;
+    string id = 1;
+}
+
+message NemesisResponse {
+    string id = 1;
+    string name = 2;
+    string power = 3;
 }
 
 message Empty {}
 
-message NemesisResponse {
-  string nemesis_id = 1;
-  string person_id = 2;
-  string nemesis_name = 3;
-  int64 nemesis_power = 4;
-}
-
-message DeleteNemesisResponse {
-  string message = 1;
-}
-
-message ListNemesesResponse {
-  repeated NemesisResponse nemeses = 1;
+message ListNemesisResponse {
+    repeated NemesisResponse nemeses = 1;  
 }

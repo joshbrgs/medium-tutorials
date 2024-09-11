@@ -1,32 +1,42 @@
-package users
+package main
 
 import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joshbrgs/mongorm/cmd/mongorm"
-
+	"github.com/medium-tutorials/bad-inc/cmd/users/users/users"
 	"github.com/medium-tutorials/bad-inc/pkgs/server"
 )
 
 func main() {
 	e := server.NewServer(
-		server.WithPort(8000),
+		server.WithPort(8081),
 	)
-
+	//
 	user := os.Getenv("MONGO_INITDB_ROOT_USERNAME")
 	pass := os.Getenv("MONGO_INITDB_ROOT_PASSWORD")
-	connectionString := fmt.Sprintf("mongodb://%s:%s@localhost:27017", user, pass)
+	connectionString := fmt.Sprintf("mongodb://%s:%s@mongodb:27017", user, pass)
 
-	client, err := mongorm.Connect(connectionString)
+	client, ctx, err := mongorm.Connect(connectionString)
 	if err != nil {
+		log.Fatalf("Failed to connect to mongodb with uri: %s", connectionString)
 		panic(err)
 	}
 
-	// defer client.Disconnect()
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			log.Fatalf("Failed to disconnect from MongoDB: %v", err)
+		}
+		log.Println("Disconnected from MongoDB")
+	}()
 
-	url := "amqp://localhost:5672"
+	ruser := os.Getenv("RABBITMQ_DEFAULT_USER")
+	rpass := os.Getenv("RABBITMQ_DEFAULT_PASS")
+	url := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672", ruser, rpass)
 
 	// Create a connection with options
 	rmq, err := server.NewRabbitMQ(server.WithRabbitMQURL(url))
@@ -37,7 +47,7 @@ func main() {
 
 	db := client.Database("users")
 
-	userService := NewUserService(db, rmq)
+	userService := users.NewUserService(db, rmq)
 
 	go func() {
 		e.Logger.Fatal(e.Start(""))
@@ -45,9 +55,20 @@ func main() {
 
 	e.Logger.Info("server started on http://" + e.Server.Addr)
 
-	e.POST("/users", userService.createUserHandler)
-	e.GET("/users/:id", userService.getUserByIdHandler)
-	e.DELETE("/users/:id", userService.deleteUserHandler)
-	e.PUT("/users/:id", userService.updateUserHandler)
-	e.POST("/login", userService.loginHandler)
+	e.POST("/users", userService.CreateUserHandler)
+	e.GET("/users/:id", userService.GetUserByIdHandler)
+	e.DELETE("/users/:id", userService.DeleteUserHandler)
+	e.PUT("/users/:id", userService.UpdateUserHandler)
+	e.POST("/login", userService.LoginHandler)
+
+	// Block main goroutine until a signal is received
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	// Gracefully shut down the server when a signal is received
+	log.Println("Shutting down the server...")
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
 }

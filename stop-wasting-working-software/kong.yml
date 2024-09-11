@@ -1,0 +1,33 @@
+_format_version: "2.1"
+services:
+  - name: users-service
+    url: http://users:8081
+    routes:
+      - name: users-route
+        paths:
+          - /users
+          - /users/{id}
+          - /login
+
+  - name: notification-service
+    url: http://notifications:8091
+    routes:
+      - name: notifications-route
+        paths:
+          - /notify
+
+  - name: nemesis-service
+    url: grpc://nemesis:50051
+    routes:
+      - name: nemesis-route
+        paths:
+          - /nemesis
+          - /nemesis/{id}
+        protocols:
+          - http
+        plugins:
+          - name: grpc-gateway # Enable gRPC-JSON transcoding plugin
+            config:
+              # service: "NemesisService" # Name of your gRPC service
+              proto: "/proto/nemesis.proto" # Path to the .proto file inside the Kong container
+

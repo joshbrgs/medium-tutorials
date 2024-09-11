@@ -4,15 +4,15 @@
 ARG GO_VERSION=1.22
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 WORKDIR /src
+# Install required tools: buf for managing proto files and dependencies
+RUN apt-get update && apt-get install -y curl unzip git
 
-# Install protoc and the Go plugins for protobuf
-RUN apt-get update && apt-get install -y \
-  protobuf-compiler \
-  && rm -rf /var/lib/apt/lists/*
+# Install protoc-gen-go and protoc-gen-go-grpc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
+  && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
-# Install the Go protobuf and gRPC plugins
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+# Install buf CLI
+RUN curl -sSL https://github.com/bufbuild/buf/releases/download/v1.40.1/buf-Linux-x86_64 -o /usr/local/bin/buf && chmod +x /usr/local/bin/buf
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
 COPY go.mod go.sum ./
@@ -21,8 +21,14 @@ RUN go mod download -x
 # Copy the entire application source code
 COPY . .
 
-# Generate the protobuf code
-RUN protoc --proto_path=./cmd/nemesis/api/proto --go_out=./cmd/nemesis/api/gen --go-grpc_out=./cmd/nemesis/api/gen ./cmd/nemesis/api/proto/*.proto
+WORKDIR /src/cmd/nemesis/api
+# Fetch proto dependencies using buf
+RUN buf dep update
+
+# Generate Go code from proto files using buf
+RUN buf generate
+
+WORKDIR /src 
 
 # Build the application for the nemesis service
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /nemesis_service ./cmd/nemesis

@@ -1,78 +1,52 @@
-package nemesis
+package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
+	"os"
 
+	"github.com/joshbrgs/mongorm/cmd/mongorm"
 	pb "github.com/medium-tutorials/bad-inc/cmd/nemesis/api/gen"
+	"github.com/medium-tutorials/bad-inc/cmd/nemesis/service"
+	"github.com/medium-tutorials/bad-inc/pkgs/server"
 
 	"google.golang.org/grpc"
 )
 
-type NemesisServiceServer struct {
-	pb.UnimplementedNemesisServiceServer
-	nemesisStore map[string]*pb.NemesisResponse
-}
-
-func NewNemesisServiceServer() *NemesisServiceServer {
-	return &NemesisServiceServer{
-		nemesisStore: make(map[string]*pb.NemesisResponse),
-	}
-}
-
-func (s *NemesisServiceServer) CreateNemesis(ctx context.Context, req *pb.CreateNemesisRequest) (*pb.NemesisResponse, error) {
-	nemesisID := fmt.Sprintf("nemesis-%s", req.PersonId)
-	nemesis := &pb.NemesisResponse{
-		NemesisId:    nemesisID,
-		PersonId:     req.PersonId,
-		NemesisName:  req.NemesisName,
-		NemesisPower: req.NemesisPower,
-	}
-	s.nemesisStore[nemesisID] = nemesis
-	return nemesis, nil
-}
-
-func (s *NemesisServiceServer) GetNemesis(ctx context.Context, req *pb.GetNemesisRequest) (*pb.NemesisResponse, error) {
-	nemesis, exists := s.nemesisStore[req.NemesisId]
-	if !exists {
-		return nil, fmt.Errorf("nemesis with ID %s not found", req.NemesisId)
-	}
-	return nemesis, nil
-}
-
-func (s *NemesisServiceServer) UpdateNemesis(ctx context.Context, req *pb.UpdateNemesisRequest) (*pb.NemesisResponse, error) {
-	nemesis, exists := s.nemesisStore[req.NemesisId]
-	if !exists {
-		return nil, fmt.Errorf("nemesis with ID %s not found", req.NemesisId)
-	}
-	nemesis.NemesisName = req.NemesisName
-	nemesis.NemesisPower = req.NemesisPower
-	s.nemesisStore[req.NemesisId] = nemesis
-	return nemesis, nil
-}
-
-func (s *NemesisServiceServer) DeleteNemesis(ctx context.Context, req *pb.DeleteNemesisRequest) (*pb.DeleteNemesisResponse, error) {
-	_, exists := s.nemesisStore[req.NemesisId]
-	if !exists {
-		return nil, fmt.Errorf("nemesis with ID %s not found", req.NemesisId)
-	}
-	delete(s.nemesisStore, req.NemesisId)
-	return &pb.DeleteNemesisResponse{Message: "Nemesis deleted successfully"}, nil
-}
-
-func (s *NemesisServiceServer) ListNemeses(ctx context.Context, req *pb.Empty) (*pb.ListNemesesResponse, error) {
-	nemeses := make([]*pb.NemesisResponse, 0, len(s.nemesisStore))
-	for _, nemesis := range s.nemesisStore {
-		nemeses = append(nemeses, nemesis)
-	}
-	return &pb.ListNemesesResponse{Nemeses: nemeses}, nil
-}
-
 func main() {
-	server := grpc.NewServer()
-	pb.RegisterNemesisServiceServer(server, NewNemesisServiceServer())
+	user := os.Getenv("MONGO_INITDB_ROOT_USERNAME")
+	pass := os.Getenv("MONGO_INITDB_ROOT_PASSWORD")
+	connectionString := fmt.Sprintf("mongodb://%s:%s@mongodb:27017", user, pass)
+
+	client, ctx, err := mongorm.Connect(connectionString)
+	if err != nil {
+		log.Fatalf("Failed to connect to mongodb with uri: %s", connectionString)
+		panic(err)
+	}
+
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			log.Fatalf("Failed to disconnect from MongoDB: %v", err)
+		}
+		log.Println("Disconnected from MongoDB")
+	}()
+
+	ruser := os.Getenv("RABBITMQ_DEFAULT_USER")
+	rpass := os.Getenv("RABBITMQ_DEFAULT_PASS")
+	url := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672", ruser, rpass)
+
+	// Create a connection with options
+	rmq, err := server.NewRabbitMQ(server.WithRabbitMQURL(url))
+	if err != nil {
+		log.Fatalf("Failed to create RabbitMQ connection: %v", err)
+	}
+	defer rmq.Close()
+
+	db := client.Database("users")
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterNemesisServiceServer(grpcServer, service.NewNemesisServiceServer(db, rmq))
 
 	listener, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -80,7 +54,7 @@ func main() {
 	}
 
 	log.Println("Nemesis Service is running on port 50051...")
-	if err := server.Serve(listener); err != nil {
+	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
 }

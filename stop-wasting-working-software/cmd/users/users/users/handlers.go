@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (s *UserService) createUserHandler(c echo.Context) error {
+func (s *UserService) CreateUserHandler(c echo.Context) error {
 	// Parse request body to get user data
 	var user User
 	if err := c.Bind(&user); err != nil {
@@ -23,7 +23,7 @@ func (s *UserService) createUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, user)
 }
 
-func (s *UserService) getUserByIdHandler(c echo.Context) error {
+func (s *UserService) GetUserByIdHandler(c echo.Context) error {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -37,7 +37,7 @@ func (s *UserService) getUserByIdHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-func (s *UserService) deleteUserHandler(c echo.Context) error {
+func (s *UserService) DeleteUserHandler(c echo.Context) error {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -51,7 +51,7 @@ func (s *UserService) deleteUserHandler(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *UserService) updateUserHandler(c echo.Context) error {
+func (s *UserService) UpdateUserHandler(c echo.Context) error {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -70,7 +70,7 @@ func (s *UserService) updateUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, updatedUser)
 }
 
-func (s *UserService) loginHandler(c echo.Context) error {
+func (s *UserService) LoginHandler(c echo.Context) error {
 	// Parse request body to get username and password
 	var credentials struct {
 		Username string `json:"username"`
