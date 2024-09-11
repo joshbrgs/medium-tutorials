@@ -14,17 +14,18 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer {{token}}",
+						"value": "Bearer {{jwt_token}}",
 						"type": "text"
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/user",
+					"raw": "{{base_url}}/users/66e1ab6471df785adf22f35d",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"user"
+						"users",
+						"66e1ab6471df785adf22f35d"
 					]
 				}
 			},
@@ -52,7 +53,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n\t\"name\": \"Add your name in the body\"\n}",
+					"raw": "{\n\t\"username\": \"newestusery\",\n    \"password\": \"password1234567\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -60,12 +61,12 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/user",
+					"raw": "{{base_url}}/create-user",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"user"
+						"create-user"
 					]
 				},
 				"description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
@@ -74,15 +75,40 @@
 		},
 		{
 			"name": "Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var response = pm.response.json();\r",
+							"var token = response.token;\r",
+							"pm.environment.set(\"jwt_token\", token);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"username\": \"newestusery\",\r\n    \"password\": \"password1234567\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
 				"url": {
-					"raw": "{{base_url}}/login",
+					"raw": "{{base_url}}/login/login",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
+						"login",
 						"login"
 					]
 				}
@@ -106,12 +132,15 @@
 					}
 				}
 			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
 			"request": {
 				"method": "GET",
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer {{token}}",
+						"value": "Bearer {{jwt_token}}",
 						"type": "text"
 					}
 				],
@@ -164,7 +193,7 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer {{token}}",
+						"value": "Bearer {{jwt_token}}",
 						"type": "text"
 					}
 				],
@@ -188,7 +217,7 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer {{token}}",
+						"value": "Bearer {{jwt_token}}",
 						"type": "text"
 					}
 				],
@@ -211,7 +240,7 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer {{token}}",
+						"value": "Bearer {{jwt_token}}",
 						"type": "text"
 					}
 				],
@@ -252,7 +281,13 @@
 			],
 			"request": {
 				"method": "DELETE",
-				"header": [],
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "",
@@ -285,7 +320,13 @@
 			"name": "List Notifications",
 			"request": {
 				"method": "GET",
-				"header": [],
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					}
+				],
 				"url": {
 					"raw": "{{base_url}}/notify",
 					"host": [
@@ -297,48 +338,16 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
 		}
 	],
-	"auth": {
-		"type": "jwt",
-		"jwt": [
-			{
-				"key": "algorithm",
-				"value": "HS256",
-				"type": "string"
-			},
-			{
-				"key": "isSecretBase64Encoded",
-				"value": false,
-				"type": "boolean"
-			},
-			{
-				"key": "payload",
-				"value": "{}",
-				"type": "string"
-			},
-			{
-				"key": "addTokenTo",
-				"value": "header",
-				"type": "string"
-			},
-			{
-				"key": "headerPrefix",
-				"value": "Bearer",
-				"type": "string"
-			},
-			{
-				"key": "queryParamKey",
-				"value": "token",
-				"type": "string"
-			},
-			{
-				"key": "header",
-				"value": "{}",
-				"type": "string"
-			}
-		]
-	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -366,12 +375,7 @@
 		},
 		{
 			"key": "base_url",
-			"value": "http://localhost"
-		},
-		{
-			"key": "token",
-			"value": "",
-			"type": "string"
+			"value": "http://localhost:8000"
 		}
 	]
 }
