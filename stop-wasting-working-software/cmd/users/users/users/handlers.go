@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *UserService) CreateUserHandler(c echo.Context) error {
@@ -14,8 +15,17 @@ func (s *UserService) CreateUserHandler(c echo.Context) error {
 		return err
 	}
 
+	// Hash the password using bcrypt
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to hash password")
+	}
+
+	// Replace the plain password with the hashed password
+	user.Password = string(hashedPassword)
+
 	// Create user using the UserService
-	err := s.CreateUser(c.Request().Context(), user)
+	err = s.CreateUser(c.Request().Context(), user)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

@@ -9,27 +9,27 @@ import "google/api/annotations.proto";
 service NemesisService {
     rpc CreateNemesis(CreateNemesisRequest) returns (NemesisResponse){
         option (google.api.http) = {
-            post: "/nemesis"
+            post: "/"
          };
     };
     rpc GetNemesis(GetNemesisRequest) returns (NemesisResponse){
         option (google.api.http) = {
-            get: "/nemesis/{id}"
+            get: "/{id}"
          };
     };
     rpc UpdateNemesis(UpdateNemesisRequest) returns (NemesisResponse){
         option (google.api.http) = {
-            patch: "/nemesis/{id}"
+            patch: "/{id}"
          };
     };
     rpc DeleteNemesis(DeleteNemesisRequest) returns (Empty){
         option (google.api.http) = {
-            delete: "/nemesis/{id}"
+            delete: "/{id}"
          };
     };
     rpc ListNemesis(Empty) returns (ListNemesisResponse){
         option (google.api.http) = {
-            get: "/nemesis"
+            get: "/"
         };
     };
 }

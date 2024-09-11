@@ -6,8 +6,27 @@ services:
       - name: users-route
         paths:
           - /users
-          - /users/{id}
+          - /users/([^/]+)
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: kid
+              claims_to_verify:
+                - exp
+
+      # Route for creating a user (no JWT protection)
+      - name: create-user-route
+        paths:
+          - /create-user
+        methods:
+          - POST
+
+      # Route for user login (no JWT protection)
+      - name: login-route
+        paths:
           - /login
+        methods:
+          - POST
 
   - name: notification-service
     url: http://notifications:8091
@@ -15,6 +34,12 @@ services:
       - name: notifications-route
         paths:
           - /notify
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: kid
+              claims_to_verify:
+                - exp
 
   - name: nemesis-service
     url: grpc://nemesis:50051
@@ -22,12 +47,21 @@ services:
       - name: nemesis-route
         paths:
           - /nemesis
-          - /nemesis/{id}
+          - /nemesis/([^/]+)
         protocols:
-          - http
+          - grpc
+          - grpcs
         plugins:
-          - name: grpc-gateway # Enable gRPC-JSON transcoding plugin
+          - name: jwt
             config:
-              # service: "NemesisService" # Name of your gRPC service
-              proto: "/proto/nemesis.proto" # Path to the .proto file inside the Kong container
+              key_claim_name: kid
+              claims_to_verify:
+                - exp
+          - name: grpc-gateway
+            config:
+              proto: "/proto/nemesis.proto"
 
+consumers:
+  - username: loginservice
+jwt_secrets:
+  - consumer: loginservice

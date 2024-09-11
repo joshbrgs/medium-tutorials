@@ -6,9 +6,9 @@ let cachedMessages: string[] = [];
 const { channel } = await connectToRabbitMQ();
 
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === "GET" && new URL(req.url).pathname === "/notify") {
+  if (req.method === "GET" && new URL(req.url).pathname === "/") {
     if (cachedMessages.length === 0) {
-      cachedMessages = await consumeFromQueue(channel, "nemesis");
+      cachedMessages = await consumeFromQueue(channel, "users");
     }
 
     const response = {

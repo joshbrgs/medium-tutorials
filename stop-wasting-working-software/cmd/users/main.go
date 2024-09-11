@@ -55,10 +55,10 @@ func main() {
 
 	e.Logger.Info("server started on http://" + e.Server.Addr)
 
-	e.POST("/users", userService.CreateUserHandler)
-	e.GET("/users/:id", userService.GetUserByIdHandler)
-	e.DELETE("/users/:id", userService.DeleteUserHandler)
-	e.PUT("/users/:id", userService.UpdateUserHandler)
+	e.POST("/", userService.CreateUserHandler)
+	e.GET("/:id", userService.GetUserByIdHandler)
+	e.DELETE("/:id", userService.DeleteUserHandler)
+	e.PUT("/:id", userService.UpdateUserHandler)
 	e.POST("/login", userService.LoginHandler)
 
 	// Block main goroutine until a signal is received

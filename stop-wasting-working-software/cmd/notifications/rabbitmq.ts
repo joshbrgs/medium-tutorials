@@ -1,4 +1,4 @@
-import { connect } from "https://deno.land/x/amqp@v0.24.0/mod.ts";
+import { connect, Channel, ConsumeMessage } from "https://deno.land/x/amqp@v0.24.0/mod.ts";
 
 export async function connectToRabbitMQ() {
   const connection = await connect({
@@ -18,10 +18,19 @@ export async function connectToRabbitMQ() {
 export async function consumeFromQueue(channel: any, queue: string) {
   const messages: string[] = [];
 
-  await channel.consume(queue, (msg: any) => {
-    const messageContent = new TextDecoder().decode(msg.body);
-    console.log("Received:", messageContent);
-    messages.push(messageContent);
+  // Ensure queue exists
+  await channel.declareQueue(queue, { durable: true });
+
+  // Consume messages from the queue
+  await channel.consume(queue, (msg: ConsumeMessage | null) => {
+    if (msg) {
+      const messageContent = new TextDecoder().decode(msg.body);
+      console.log("Received:", messageContent);
+      messages.push(messageContent);
+
+      // Acknowledge the message after processing
+      channel.ack(msg);
+    }
   });
 
   return messages;

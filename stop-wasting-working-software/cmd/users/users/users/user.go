@@ -2,9 +2,10 @@ package users
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"os"
+	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -33,9 +34,17 @@ type UserService struct {
 	mq *server.RabbitMQ
 }
 
+type JWTSecretResponse struct {
+	Data []struct {
+		Key       string `json:"key"`
+		Algorithm string `json:"algorithm"`
+		Secret    string `json:"secret"`
+	} `json:"data"`
+}
+
 var (
-	key               = os.Getenv("SECRET_KEY")
-	secretKey         = []byte(key)
+	kongAdminURL      = "http://kong:8001" // URL to Kong's Admin API
+	consumerName      = "loginservice"
 	jwtExpiryDuration = 24 * time.Hour
 )
 
@@ -52,7 +61,7 @@ func (s *UserService) CreateUser(ctx context.Context, user User) error {
 
 	userModel := &user // Cast User to a pointer for mongorm.Model
 
-	if err := s.mq.Publish(ctx, "users", fmt.Sprintf("New User created: %s", userModel.ScreenName)); err != nil {
+	if err := s.mq.Publish(ctx, "users", fmt.Sprintf("New User created: %s", userModel.Username)); err != nil {
 		log.Fatalf("Failed to publish message: %v", err)
 	}
 
@@ -100,16 +109,49 @@ func (s *UserService) authenticateUser(username, password string) (string, error
 		return "", fmt.Errorf("invalid password")
 	}
 
+	kid, secret, err := getKIDFromKong()
+	if err != nil {
+		return "", err
+	}
+
+        secretBytes := []byte(secret)
+
 	// Generate JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID.Hex(),
 		"exp": time.Now().Add(jwtExpiryDuration).Unix(),
 	})
 
-	signedToken, err := token.SignedString(secretKey)
+	// Add KID to the token header
+	token.Header["kid"] = kid
+
+	signedToken, err := token.SignedString(secretBytes)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("signing error: %s", err)
 	}
 
 	return signedToken, nil
+}
+
+func getKIDFromKong() (string, string, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/consumers/%s/jwt", kongAdminURL, consumerName))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get JWT secrets from Kong: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var result JWTSecretResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", fmt.Errorf("failed to decode JWT secrets response: %v", err)
+	}
+
+	if len(result.Data) == 0 {
+		return "", "", fmt.Errorf("no JWT secrets found")
+	}
+
+	return result.Data[0].Key, result.Data[0].Secret, nil
 }
