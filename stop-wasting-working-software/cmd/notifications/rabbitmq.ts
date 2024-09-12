@@ -15,23 +15,22 @@ export async function connectToRabbitMQ() {
   return { connection, channel };
 }
 
-export async function consumeFromQueue(channel: any, queue: string) {
+export async function consumeFromQueue(channel: Channel, queueName: string): Promise<string[]> {
   const messages: string[] = [];
 
-  // Ensure queue exists
-  await channel.declareQueue(queue, { durable: true });
+  await channel.consume(
+    { queue: queueName },
+    async (args, props, data) => {
+      console.log(JSON.stringify(args));
+      console.log(JSON.stringify(props));
+      messages.push(new TextDecoder().decode(data));
+      await channel.ack({ deliveryTag: args.deliveryTag });
+    },
+  );
 
-  // Consume messages from the queue
-  await channel.consume(queue, (msg: ConsumeMessage | null) => {
-    if (msg) {
-      const messageContent = new TextDecoder().decode(msg.body);
-      console.log("Received:", messageContent);
-      messages.push(messageContent);
-
-      // Acknowledge the message after processing
-      channel.ack(msg);
-    }
-  });
+  // Consider adding a timeout or a mechanism to stop consuming after some time
+  // This is just a placeholder, adjust it based on your needs
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   return messages;
 }

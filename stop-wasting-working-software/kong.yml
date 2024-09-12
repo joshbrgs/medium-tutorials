@@ -6,7 +6,6 @@ services:
       - name: users-route
         paths:
           - /users
-          - /users/([^/]+)
         plugins:
           - name: jwt
             config:
@@ -49,8 +48,8 @@ services:
           - /nemesis
           - /nemesis/([^/]+)
         protocols:
-          - grpc
-          - grpcs
+          - http
+          - https #We are converting our grpc service to http rest calls, if you wanted, grpc works just as well!
         plugins:
           - name: jwt
             config:

@@ -25,10 +25,13 @@ func NewNemesisServiceServer(db *mongo.Database, mq *server.RabbitMQ) *NemesisSe
 }
 
 func (s *NemesisServiceServer) CreateNemesis(ctx context.Context, req *pb.CreateNemesisRequest) (*pb.NemesisResponse, error) {
+log.Printf("Received CreateNemesisRequest: %+v", req)
 	nemesis := &models.Nemesis{
 		Name:  req.Name,
 		Power: req.Power,
 	}
+
+	log.Printf("Nemesis: %s, %s", nemesis.Name, nemesis.Power)
 
 	if err := nemesis.Create(ctx, s.db, "nemesis", nemesis); err != nil {
 		log.Printf("Failed to create nemesis: %v", err)

@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # Create a stage for building the application.
-ARG GO_VERSION=1.22
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
+FROM golang:1.22 AS builder
+
 WORKDIR /src
 # Install required tools: buf for managing proto files and dependencies
 RUN apt-get update && apt-get install -y curl unzip git
@@ -31,7 +31,7 @@ RUN buf generate
 WORKDIR /src 
 
 # Build the application for the nemesis service
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /nemesis_service ./cmd/nemesis
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /nemesis_service ./cmd/nemesis
 
 # Create a new stage for running the application
 FROM ubuntu:latest AS final
@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y \
 
 # Create a non-privileged user
 # Copy the executable from the build stage
-COPY --from=build /nemesis_service /
+COPY --from=builder /nemesis_service /
 
 # Ensure the binary is executable
 RUN chmod +x /nemesis_service

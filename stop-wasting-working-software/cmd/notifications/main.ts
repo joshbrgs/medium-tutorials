@@ -5,10 +5,12 @@ let cachedMessages: string[] = [];
 
 const { channel } = await connectToRabbitMQ();
 
+await channel.declareQueue({ queue: "nemesis", durable: true });
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "GET" && new URL(req.url).pathname === "/") {
     if (cachedMessages.length === 0) {
-      cachedMessages = await consumeFromQueue(channel, "users");
+      cachedMessages = await consumeFromQueue(channel, "nemesis");
+      console.log("cachedMessages: ", cachedMessages)
     }
 
     const response = {
