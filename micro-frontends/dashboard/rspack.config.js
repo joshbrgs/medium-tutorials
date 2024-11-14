@@ -9,120 +9,122 @@ const printCompilationMessage = require('./compilation.config.js');
  * @type {import('@rspack/cli').Configuration}
  */
 module.exports = {
-  context: __dirname,
-  entry: {
-    main: './src/index.ts',
-  },
-  experiments: {
-    rspackFuture: {
-      disableTransformByDefault: true,
+    context: __dirname,
+    entry: {
+        main: './src/index.ts',
     },
-  },
-  
-  devServer: {
-    port: 9000,
-    historyApiFallback: true,
-    watchFiles: [path.resolve(__dirname, 'src')],
-    onListening: function (devServer) {
-      const port = devServer.server.address().port
+    experiments: {
+        rspackFuture: {
+            disableTransformByDefault: true,
+        },
+    },
 
-      printCompilationMessage('compiling', port)
+    devServer: {
+        port: 9000,
+        historyApiFallback: true,
+        watchFiles: [path.resolve(__dirname, 'src')],
+        onListening: function (devServer) {
+            const port = devServer.server.address().port
 
-      devServer.compiler.hooks.done.tap('OutputMessagePlugin', (stats) => {
-        setImmediate(() => {
-          if (stats.hasErrors()) {
-            printCompilationMessage('failure', port)
-          } else {
-            printCompilationMessage('success', port)
-          }
-        })
-      })
-    }
-  },
+            printCompilationMessage('compiling', port)
 
-  resolve: {
-    extensions: ['.js','.jsx','.ts','.tsx','.json']
-  },
-  module: {
-    rules: [
-      {
-        test: /\.svg$/,
-        type: 'asset',
-      },
-      {
-        test: /\.scss$/,
-        use: [
-          {
-            loader: 'postcss-loader',
-            options: {
-              postcssOptions: {
-                plugins: {
-                  tailwindcss: {},
-                  autoprefixer: {},
+            devServer.compiler.hooks.done.tap('OutputMessagePlugin', (stats) => {
+                setImmediate(() => {
+                    if (stats.hasErrors()) {
+                        printCompilationMessage('failure', port)
+                    } else {
+                        printCompilationMessage('success', port)
+                    }
+                })
+            })
+        }
+    },
+
+    resolve: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
+    },
+    module: {
+        rules: [
+            {
+                test: /\.svg$/,
+                type: 'asset',
+            },
+            {
+                test: /\.scss$/,
+                use: [
+                    {
+                        loader: 'postcss-loader',
+                        options: {
+                            postcssOptions: {
+                                plugins: {
+                                    tailwindcss: {},
+                                    autoprefixer: {},
+                                },
+                            },
+                        },
+                    },
+                ],
+                type: 'css',
+            },
+            {
+                test: /\.(js|jsx)$/,
+                loader: "builtin:swc-loader",
+                options: {
+                    sourceMap: true,
+                    jsc: {
+                        parser: {
+                            syntax: "ecmascript",
+                            jsx: true,
+                        },
+                        transform: {
+                            react: {
+                                runtime: "automatic",
+                                importSource: 'preact'
+                            },
+                        },
+                    },
                 },
-              },
+                type: "javascript/auto",
             },
-          },
+            {
+                test: /\.(ts|tsx)$/,
+                loader: "builtin:swc-loader",
+                options: {
+                    sourceMap: true,
+                    jsc: {
+                        parser: {
+                            syntax: "typescript",
+                            jsx: true,
+                        },
+                        transform: {
+                            react: {
+                                runtime: "automatic",
+                                importSource: 'preact'
+                            },
+                        },
+                    },
+                },
+                type: "javascript/auto",
+            },
         ],
-        type: 'css',
-      },
-      {
-        test: /\.(js|jsx)$/,
-        loader: "builtin:swc-loader",
-        options: {
-          sourceMap: true,
-          jsc: {
-            parser: {
-              syntax: "ecmascript",
-              jsx: true,
+    },
+    plugins: [
+        new rspack.container.ModuleFederationPlugin({
+            name: 'dashboard',
+            filename: 'remoteEntry.js',
+            exposes: {
+                './dashboard': './src/App'
             },
-            transform: {
-              react: {
-                runtime: "automatic",
-                importSource: 'preact'
-              },
+            shared: {
             },
-          },
-        },
-        type: "javascript/auto",
-      },
-      {
-        test: /\.(ts|tsx)$/,
-        loader: "builtin:swc-loader",
-        options: {
-          sourceMap: true,
-          jsc: {
-            parser: {
-              syntax: "typescript",
-              jsx: true,
-            },
-            transform: {
-              react: {
-                runtime: "automatic",
-                importSource: 'preact'
-              },
-            },
-          },
-        },
-        type: "javascript/auto",
-      },
-    ],
-  },
-  plugins: [
-    new rspack.container.ModuleFederationPlugin({
-      name: 'dashboard',
-      filename: 'remoteEntry.js',
-      exposes: {},
-      shared: {
-      },
-    }),
-    new rspack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-    }),
-    new rspack.ProgressPlugin({}),
-    new rspack.HtmlRspackPlugin({
-      template: './src/index.html',
-    }),
-    isDev ? new refreshPlugin() : null,
-  ].filter(Boolean),
+        }),
+        new rspack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+        }),
+        new rspack.ProgressPlugin({}),
+        new rspack.HtmlRspackPlugin({
+            template: './src/index.html',
+        }),
+        isDev ? new refreshPlugin() : null,
+    ].filter(Boolean),
 }

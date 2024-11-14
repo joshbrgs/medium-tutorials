@@ -8,10 +8,6 @@
     "start": "NODE_ENV=development rspack serve"
   },
   "license": "MIT",
-  "author": {
-    "name": "Jack Herrington",
-    "email": "jherr@pobox.com"
-  },
   "devDependencies": {
     "@rspack/cli": "0.5.4",
     "@rspack/core": "0.5.4",
