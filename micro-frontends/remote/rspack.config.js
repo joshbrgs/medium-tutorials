@@ -2,8 +2,11 @@ const rspack = require("@rspack/core");
 const refreshPlugin = require("@rspack/plugin-react-refresh");
 const isDev = process.env.NODE_ENV === "development";
 const path = require("path");
+const { VueLoaderPlugin } = require("vue-loader");
 
 const printCompilationMessage = require("./compilation.config.js");
+
+const deps = require("./package.json").dependencies;
 
 /**
  * @type {import('@rspack/cli').Configuration}
@@ -15,10 +18,10 @@ module.exports = {
     },
 
     devServer: {
-        port: 8080,
+        port: 9000,
         historyApiFallback: true,
         watchFiles: [path.resolve(__dirname, "src")],
-        onListening: function(devServer) {
+        onListening: function (devServer) {
             const port = devServer.server.address().port;
 
             printCompilationMessage("compiling", port);
@@ -39,10 +42,17 @@ module.exports = {
     },
 
     resolve: {
-        extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
+        extensions: [".js", ".ts", ".vue", ".json"],
     },
     module: {
         rules: [
+            {
+                test: /\.vue$/,
+                loader: "vue-loader",
+                options: {
+                    experimentalInlineMatchResource: true,
+                },
+            },
             {
                 test: /\.svg$/,
                 type: "asset",
@@ -99,17 +109,15 @@ module.exports = {
         ],
     },
     plugins: [
+        new VueLoaderPlugin(),
         new rspack.container.ModuleFederationPlugin({
-            name: "host",
+            name: "remote",
             filename: "remoteEntry.js",
-            exposes: {},
-            remotes: {
-                remote: "remote@http://localhost:9000/remoteEntry.js",
+            exposes: {
+                "./Counter": "./src/counterMounter",
             },
             shared: {
-                react: { eager: true },
-                "react-dom": { eager: true },
-                "react-router-dom": { eager: true },
+                ...deps,
             },
         }),
         new rspack.DefinePlugin({
