@@ -1,0 +1,15 @@
+{
+    "dev": {
+        "account": "779846820970",
+        "region": "us-east-1"
+    },
+    "staging": {
+        "account": "277707124919",
+        "region": "us-east-1"
+    },
+    "prod": {
+        "account": "503561434491",
+        "region": "us-east-1"
+    },
+    "@data-solutions-framework-on-aws/removeDataOnDestroy": true
+}
