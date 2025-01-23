@@ -19,5 +19,7 @@
 # vendor/
 **/env/
 **/__pycache__/
+**/node_modules/
+**/dist/
 # Go workspace file
 go.work
