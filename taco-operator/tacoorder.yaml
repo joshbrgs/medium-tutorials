@@ -1,0 +1,10 @@
+apiVersion: food.tacos.io/v1alpha1
+kind: TacoOrder
+metadata:
+  name: my-taco-order
+spec:
+  type: al_pastor
+  quantity: 3
+  extras:
+    - guacamole
+    - extra cheese
