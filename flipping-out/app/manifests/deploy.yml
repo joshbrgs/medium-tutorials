@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flipping-out-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flipping-out-api
+  template:
+    metadata:
+      labels:
+        app: flipping-out-api
+    spec:
+      containers:
+        - name: api
+          image: flipping-out-api:1
+          imagePullPolicy: Never # Because we'll load it locally into kind
+          ports:
+            - containerPort: 3001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flipping-out-api
+spec:
+  selector:
+    app: flipping-out-api
+  ports:
+    - protocol: TCP
+      port: 3001
+      targetPort: 3001
+  type: ClusterIP

@@ -1,0 +1,14 @@
+# -- relay-values.yaml
+relayproxy:
+  # -- GO Feature Flag relay proxy configuration as string (accept template).
+  # -- uri could be referenced as a secret in a production level scenario
+  config: | # This is a configuration example for the relay-proxy
+    listen: 1031
+    pollingInterval: 1000
+    startWithRetrieverError: false
+    logLevel: info
+    retriever:
+      kind: mongodb
+      uri: mongodb://root:password@mongo-mongodb:27017/
+      database: appConfig
+      collection: featureFlags

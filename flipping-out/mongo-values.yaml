@@ -1,0 +1,16 @@
+# Authentication settings
+auth:
+  enabled: true
+  rootPassword: password
+  rootUser: root
+  usernames:
+    - example
+  passwords:
+    - flagged
+  databases:
+    - appConfig
+
+# Persistent storage settings
+persistence:
+  enabled: true
+  size: 4Gi
