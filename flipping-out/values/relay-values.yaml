@@ -12,3 +12,10 @@ relayproxy:
       uri: mongodb://root:password@mongo-mongodb:27017/
       database: appConfig
       collection: featureFlags
+    exporters:
+      kind: kafka
+      kafka:
+        topic: "go-feature-flag-events"
+        addresses:
+          - "kafka.default.svc.cluster.local:9092"
+

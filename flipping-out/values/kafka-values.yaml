@@ -1,0 +1,23 @@
+replicaCount: 1
+auth:
+  enabled: false
+
+zookeeper:
+  enabled: true
+
+listeners:
+  client:
+    protocol: PLAINTEXT
+
+advertisedListeners:
+  - name: CLIENT
+    address: kafka.default.svc.cluster.local
+    port: 9092
+
+service:
+  type: ClusterIP
+
+extraEnvVars:
+  - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+    value: "true"
+
