@@ -1,7 +1,11 @@
 package models
 
+import (
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
 type FeatureFlag struct {
-	ID          string             `bson:"_id,omitempty" json:"id,omitempty"`
+	ID          bson.ObjectID      `bson:"_id,omitempty" json:"id,omitempty"`
 	Flag        string             `bson:"flag" json:"flag"`
 	Variations  VariationSet       `bson:"variations" json:"variations"`
 	DefaultRule FeatureFlagRuleSet `bson:"defaultRule" json:"defaultRule"`

@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	v1 "github.com/joshbrgs/flipping-out/internal/api/v1"
 	"github.com/joshbrgs/flipping-out/internal/app"
@@ -50,6 +51,17 @@ func StartServer() {
 
 	// start application
 	r := gin.Default()
+
+	// CORS configuration
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PATCH", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	v1.RegisterRoutes(r, container)
 	log.Println("Server started at :3001")
 

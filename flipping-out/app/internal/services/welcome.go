@@ -20,5 +20,8 @@ func (s *welcomeService) HelloWorld() string {
 }
 
 func (s *welcomeService) HelloWorldAgain(user string) string {
+	if user == "" {
+		user = "sample-user"
+	}
 	return fmt.Sprintf("Hello there %s", user)
 }

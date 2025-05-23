@@ -10,6 +10,7 @@ func RegisterRoutes(r *gin.Engine, c *app.Container) {
 
 	registerFlagRoutes(api, c)
 	registerUserRoutes(api, c)
+	registerWebsockets(api, c)
 }
 
 func registerFlagRoutes(r *gin.RouterGroup, c *app.Container) {
@@ -30,4 +31,12 @@ func registerUserRoutes(r *gin.RouterGroup, c *app.Container) {
 	exampleController := NewWelcomeController(c.WelcomeService, c.FeatureClient)
 
 	api.GET("", exampleController.getWelcomeHandler)
+}
+
+func registerWebsockets(r *gin.RouterGroup, c *app.Container) {
+	api := r.Group("/ws")
+
+	websocketController := NewWebsocketController(c.WebsocketHub)
+
+	api.GET("", websocketController.HandleWebsocket)
 }

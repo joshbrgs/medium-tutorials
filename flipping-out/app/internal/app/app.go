@@ -14,12 +14,14 @@ type Container struct {
 	FeatureRepo    repositories.FeatureFlagRepository
 	FeatureService services.FeatureService
 	WelcomeService services.WelcomeService
+	WebsocketHub   *services.Hub
 }
 
 func NewContainer(mongoClient *mongo.Client, featureClient *of.Client) *Container {
 	repo := repositories.NewFeatureFlagRepository(mongoClient, "appConfig", "featureFlags")
 	service := services.NewFeatureService(repo)
 	welcomeService := services.NewWelcomeService()
+	websocketHub := services.NewHub()
 
 	return &Container{
 		MongoClient:    mongoClient,
@@ -27,5 +29,6 @@ func NewContainer(mongoClient *mongo.Client, featureClient *of.Client) *Containe
 		FeatureRepo:    repo,
 		FeatureService: service,
 		WelcomeService: welcomeService,
+		WebsocketHub:   websocketHub,
 	}
 }
