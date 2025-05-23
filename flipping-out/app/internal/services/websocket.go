@@ -3,16 +3,24 @@ package services
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+type FeatureEvent struct {
+	Value bool `json:"value"`
+}
+
 type Hub struct {
-	clients    map[*websocket.Conn]bool
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	broadcast  chan interface{}
-	mu         sync.Mutex
+	clients       map[*websocket.Conn]bool
+	register      chan *websocket.Conn
+	unregister    chan *websocket.Conn
+	broadcast     chan interface{}
+	mu            sync.Mutex
+	Done          chan struct{}
+	LastBroadcast time.Time
+	BroadcastMu   sync.Mutex
 }
 
 func NewHub() *Hub {
@@ -21,6 +29,7 @@ func NewHub() *Hub {
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
 		broadcast:  make(chan interface{}),
+		Done:       make(chan struct{}),
 	}
 }
 
@@ -31,6 +40,8 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			h.clients[conn] = true
 			h.mu.Unlock()
+			log.Printf("Client connected. Total clients: %d", len(h.clients))
+
 		case conn := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[conn]; ok {
@@ -38,23 +49,38 @@ func (h *Hub) Run() {
 				conn.Close()
 			}
 			h.mu.Unlock()
+			log.Printf("Client disconnected. Total clients: %d", len(h.clients))
+
 		case message := <-h.broadcast:
 			h.mu.Lock()
+			clientCount := len(h.clients)
+			if clientCount == 0 {
+				h.mu.Unlock()
+				continue
+			}
+
 			for conn := range h.clients {
-				err := conn.WriteJSON(message)
-				if err != nil {
+				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err := conn.WriteJSON(message); err != nil {
 					log.Printf("WebSocket write error: %v", err)
 					conn.Close()
 					delete(h.clients, conn)
 				}
 			}
 			h.mu.Unlock()
+
+		case <-h.Done:
+			return
 		}
 	}
 }
 
 func (h *Hub) Broadcast(message interface{}) {
-	h.broadcast <- message
+	select {
+	case h.broadcast <- message:
+	case <-time.After(5 * time.Second):
+		log.Println("Broadcast timeout - hub may be blocked")
+	}
 }
 
 func (h *Hub) Register(conn *websocket.Conn) {
@@ -63,4 +89,8 @@ func (h *Hub) Register(conn *websocket.Conn) {
 
 func (h *Hub) Unregister(conn *websocket.Conn) {
 	h.unregister <- conn
+}
+
+func (h *Hub) Stop() {
+	close(h.Done)
 }
